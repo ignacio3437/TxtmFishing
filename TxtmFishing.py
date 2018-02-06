@@ -95,10 +95,9 @@ def cat_by_gene(org_file, loci_list, in_path, file_ending, out_path, cutoff):
             for org in org_list:
                 record_id = f"{org}-{spurgene}"
                 try:
-                    record_i = SeqRecord(Seq(f"{org_dict[org][spurgene].seq}", SingleLetterAlphabet(
-                    )), id=record_id, description="")
+                    record_i = SeqRecord(Seq(f"{org_dict[org][spurgene].seq}", SingleLetterAlphabet()), id=record_id, description="")
                     SeqIO.write(record_i, out_handle, "fasta")
-                except:
+                except KeyError:
                     pass
         with open(out_file_path, 'r') as out_handle:
             records = list(SeqIO.parse(out_handle, "fasta"))
@@ -107,11 +106,9 @@ def cat_by_gene(org_file, loci_list, in_path, file_ending, out_path, cutoff):
     return check_list
 
 
-def exoneratetor_bygene(query_file, in_path, in_file_ending, out_path, loci_file, org_file, num_threads):
+def exoneratetor_bygene(query_file, in_path, in_file_ending, out_path, loci_file, num_threads):
     """Makes a list of commands to send to exonerator() and parallizes the run. """
-    orglist = filelines_to_list(org_file)
     loclist = filelines_to_list(loci_file)
-    query_dict = SeqIO.to_dict(SeqIO.parse(query_file, "fasta"))
     command_args = []
     for loc in loclist:
         in_file = f"{in_path}/{loc}{in_file_ending}"
@@ -129,8 +126,8 @@ def exonerator(command_args):
     command= ' '.join((
         f"exonerate --model protein2genome",
         f"-q {query_file} -t {in_file}",
-        f"-Q protein -T dna"
-        f"--showvulgar F --showalignment F --verbose 0 --fsmmemory 20G --ryo '>%ti %qi\n%tas\n'"))
+        f"-Q protein -T dna",
+        f"--showvulgar F --showalignment F --verbose 0 --fsmmemory 20G --ryo '>%ti %qi\\n%tas\\n'"))
     run_command(command,command_out_path)
     return
 
@@ -168,7 +165,7 @@ def fasta_deduper(fasta_file):
                 pass
         else:
             u_record_dict[record.id] = [len(record.seq), record]
-    u_records = [u_record_dict[record][1] for record in u_record_dict.keys()]
+    u_records = [u_record_dict[record][1] for record,val in u_record_dict.items()]
     with open(fasta_file, 'w') as out_handle:
         SeqIO.write(u_records, out_handle, "fasta")
     return
@@ -208,27 +205,24 @@ def txtm_fishing_pipe(param_list):
     to_blast_list = filelines_to_list(loci_list_path)
     # Start the pipeline:
     for e_val in e_vals:
-        blast_run(e_val, num_threads, blast_databases,
-                  blast_query_path, blast_results)
+        blast_run(e_val, num_threads, blast_databases, blast_query_path, blast_results)
         seq_fetcher(blast_results, '.blast.txt', blast_databases, '.Trinity.annotated.nt', org_list_path)
-        check_list = cat_by_gene(
-            org_list_path, to_blast_list, blast_results, '.fa', blast_by_gene, min_num_seqs)
+        check_list = cat_by_gene(org_list_path, to_blast_list, blast_results, '.fa', blast_by_gene, min_num_seqs)
+        #Print the status of the blast searches
         if len(check_list) < 20:
             print(
                 f"The folowing loci had no hits for {e_val}:{' '.join(check_list)}")
-        elif len(check_list) == 0:
+        elif not check_list:
             print("All loci had hits at {e_val}")
         else:
             print(
-                f"There were {len(check_list)} genes with no hits for {e_val}")
+                f"There were {len(check_list)} genes with < {cutoff} hits for {e_val}")
         to_blast_list = check_list
         new_query_path = f'{project_path}/SpurGenes_aa_{e_val}.fasta'
         fasta_subseter(to_blast_list, blast_query_path, new_query_path)
         blast_query_path = new_query_path
-    exoneratetor_bygene(exonerate_query_path, blast_by_gene, '.fa',
-                        exonerate_out, loci_list_path, org_list_path, num_threads)
-    fasta_paths_to_dedupe = exonerateout_cleaner(
-        exonerate_out, '.fa', loci_list_path, exonerate_clean)
+    exoneratetor_bygene(exonerate_query_path, blast_by_gene, '.fa', exonerate_out, loci_list_path, num_threads)
+    fasta_paths_to_dedupe = exonerateout_cleaner(exonerate_out, '.fa', loci_list_path, exonerate_clean)
     for fasta_file in fasta_paths_to_dedupe:
         fasta_deduper(fasta_file)
         maffter(fasta_file, os.path.join(mafft_alignments, os.path.basename(fasta_file)), num_threads)
@@ -239,14 +233,14 @@ def txtm_fishing_pipe(param_list):
 def dir_CATer(dir1, dir2, out_path):
     """Combines the files in two directories.
     If the same fasta is in both directories, they are concatenated.
-    """
+    """ 
     set_files = list(set(os.listdir(dir1)+os.listdir(dir2)))
     for file in set_files:
         gene_records = []
-        [gene_records.append(record)
-         for record in SeqIO.parse(f"{dir1}/{file}", "fasta")]
-        [gene_records.append(record)
-         for record in SeqIO.parse(f"{dir2}/{file}", "fasta")]
+        for record in SeqIO.parse(f"{dir1}/{file}", "fasta"):
+            gene_records.append(record)
+        for record in SeqIO.parse(f"{dir2}/{file}", "fasta"):
+            gene_records.append(record)
         for record in gene_records:
             record.id = record.id.split('-')[0]
             record.description = ''
@@ -257,7 +251,6 @@ def dir_CATer(dir1, dir2, out_path):
 
 def param_reader(paramfile_path):
     """Reads a parameter file with the following:
-
     Project project_path
     Number of threads
     Minimum number of sequences for a given e_vals blast cutoff
@@ -293,7 +286,7 @@ def txtm_tarlen(loci_list_path, org_list_path, geneseq_path, out_path):
                 f"{geneseq_path}/{loci}.fa", "fasta"))
             try:
                 org_lens_list.append(len(loci_rec_dict[f"{org}-{loci}"].seq))
-            except:
+            except KeyError:
                 org_lens_list.append('0')
             lens_dict[org] = org_lens_list
     with open(out_path, 'w') as out_handle:
@@ -316,12 +309,8 @@ def main():
     else:
         print(usage)
         sys.exit(1)
-
     param_list = param_reader(paramfile_path)
-    # for x in param_list:
-    #     print(x)
     txtm_fishing_pipe(param_list)
- 
 
 
 if __name__ == "__main__":
