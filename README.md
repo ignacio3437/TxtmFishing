@@ -10,11 +10,7 @@ Input Files:
 6) Parameter file. See example
 
 Required:
--Python3
--Pool (for parallel processing)
--BioPython
--regex
 
--tBlastx
--Exonerate
--Mafft
+Python3, Pool, BioPython, regex
+
+tBlastx, Exonerate, Mafft
