@@ -1,4 +1,4 @@
-/Users/josec/Desktop/Crinoid_capture/Feb_hybTxCrinoid2 # Project project_path
+/Users/josec/Desktop/Crinoid_capture/Feb5_hybTxCrinoid # Project project_path
 7 # Number of threads
 14 # Minimum number of sequences for a given e_vals blast cutoff
 ['1e-100','1e-90','1e-80','1e-70','1e-60','1e-50','1e-40','1e-30'] #the blast evalue cutoffs to test in the order to test. Formated as python list.

@@ -41,7 +41,12 @@ def blast_run(evalue, threads, in_path, query_file, out_path):
             blast_output = subprocess.getoutput(
                 f"tblastn -query {query_file} -db {in_path}/{file} -evalue {evalue} -outfmt '6 sseqid qseqid' -max_target_seqs 1 -max_hsps 1 -num_threads {threads}")
             with open(f"{out_path}/{file_prefix}.blast.txt", "w") as out_handle:
-                out_handle.write(blast_output)
+                if 'Error' in blast_output:
+                    print(f"{file} Blast Failed")
+                    out_handle.write(blast_output)
+                    sys.exit(1)
+                else:
+                    out_handle.write(blast_output)
     return
 
 
@@ -188,19 +193,17 @@ def txtm_fishing_pipe(param_list):
     This will iterate the blast searches over the e_vals.
     If a gene has no hits for a given evalue, it is lowered and searched again.
     The results from all of the blast searches are concatenated and fed into exonerate.
-    Exonerate picks out the exons that we targeted.
+    Exonerate picks out the exons that we targeted. 
     """
-    project_path, num_threads, org_list_path, loci_list_path, blast_query_path, exonerate_query_path, e_vals, min_num_seqs = param_list
+    project_path, num_threads, min_num_seqs, e_vals, blast_query_path, org_list_path, loci_list_path, exonerate_query_path = param_list
     dirs_to_make = out_dir_maker(project_path)
-    org_list = filelines_to_list(org_list_path)
     blast_databases, blast_results, mafft_alignments, blast_by_gene, exonerate_out, exonerate_clean = dirs_to_make
     to_blast_list = filelines_to_list(loci_list_path)
     # Start the pipeline:
     for e_val in e_vals:
         blast_run(e_val, num_threads, blast_databases,
                   blast_query_path, blast_results)
-        seq_fetcher(blast_results, '.blast.txt', blast_databases,
-                    '.Trinity.annotated.nt', org_list_path)
+        seq_fetcher(blast_results, '.blast.txt', blast_databases, '.Trinity.annotated.nt', org_list_path)
         check_list = cat_by_gene(
             org_list_path, to_blast_list, blast_results, '.fa', blast_by_gene, min_num_seqs)
         if len(check_list) < 20:
@@ -221,8 +224,7 @@ def txtm_fishing_pipe(param_list):
         exonerate_out, '.fa', loci_list_path, exonerate_clean)
     for fasta_file in fasta_paths_to_dedupe:
         fasta_deduper(fasta_file)
-        maffter(fasta_file, os.path.join(mafft_alignments,
-                                         os.path.basename(fasta_file)), num_threads)
+        maffter(fasta_file, os.path.join(mafft_alignments, os.path.basename(fasta_file)), num_threads)
     return
 
 
@@ -259,7 +261,11 @@ def param_reader(paramfile_path):
     """
     plist = filelines_to_list(paramfile_path)
     p2_list = [p.split('#')[0].strip() for p in plist]
-    param_list = p2_list
+    param_list = []
+    for x in p2_list[0:4]:
+        param_list.append(x)
+    for x in p2_list[4:]:
+        param_list.append(os.path.join(p2_list[0],x)) 
     return param_list
 
 
@@ -294,7 +300,6 @@ def main():
     if not args:
         print(usage)
         sys.exit(1)
-
     if args[0] == '--param':
         paramfile_path = args[1]
     else:
@@ -302,8 +307,9 @@ def main():
         sys.exit(1)
 
     param_list = param_reader(paramfile_path)
-    print(param_list)
-    # txtm_fishing_pipe(param_list)
+    # for x in param_list:
+    #     print(x)
+    txtm_fishing_pipe(param_list)
 
 
 if __name__ == "__main__":
