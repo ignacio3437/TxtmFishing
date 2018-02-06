@@ -1,0 +1,8 @@
+# Project project_path
+# Number of threads
+# Minimum number of sequences for a given e_vals blast cutoff
+# The blast evalue cutoffs to test in the order to test. Formated as python list.
+# Filename for blast query file
+# Filename for the list of transcriptomes
+# Filename for the list of loci
+# Filename of the exonerate query
