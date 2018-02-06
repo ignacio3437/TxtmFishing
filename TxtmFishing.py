@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import regex as re
+
 import os
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -16,6 +16,14 @@ def filelines_to_list(file):
         file_list = [ind.rstrip() for ind in file_handle.readlines()]
     return file_list
 
+def run_command(command,command_out_path):
+    command_output = subprocess.getstatusoutput(command)
+    with open(command_out_path, "w") as out_handle:
+        out_handle.write(command_output[1])
+        if command_output[0]:
+            print(f"{command} Failed")
+            sys.exit(1)
+    return
 
 def out_dir_maker(project_path):
     """Creates output directories for the stages of the pipeline. """
@@ -24,7 +32,7 @@ def out_dir_maker(project_path):
     for directory in dirs_to_make:
         try:
             os.mkdir(directory)
-        except:
+        except IOError:
             pass
     return dirs_to_make
 
@@ -38,15 +46,12 @@ def blast_run(evalue, threads, in_path, query_file, out_path):
     for file in filenames:
         if file.endswith(".nt"):
             file_prefix = file.replace('.Trinity.annotated.nt', '')
-            blast_output = subprocess.getoutput(
-                f"tblastn -query {query_file} -db {in_path}/{file} -evalue {evalue} -outfmt '6 sseqid qseqid' -max_target_seqs 1 -max_hsps 1 -num_threads {threads}")
-            with open(f"{out_path}/{file_prefix}.blast.txt", "w") as out_handle:
-                if 'Error' in blast_output:
-                    print(f"{file} Blast Failed")
-                    out_handle.write(blast_output)
-                    sys.exit(1)
-                else:
-                    out_handle.write(blast_output)
+            command = ' '.join((f"tblastn", 
+            f"-query {query_file} -db {in_path}/{file}",
+            f"-evalue {evalue} -num_threads {threads}",
+            f"-outfmt '6 sseqid qseqid' -max_target_seqs 1 -max_hsps 1"))
+            command_out_path = f"{out_path}/{file_prefix}.blast.txt"
+            run_command(command, command_out_path)
     return
 
 
@@ -59,11 +64,11 @@ def seq_fetcher(list_dir, list_file_endings, seq_dir, seq_file_ending, org_file)
         record_dict = SeqIO.to_dict(SeqIO.parse(
             f"{seq_dir}/{org}{seq_file_ending}", "fasta"))
         tofetch = filelines_to_list(f"{list_dir}/{org}{list_file_endings}")
-        for id in tofetch:
-            record_id, gene_id = id.split()
+        for fetch_id in tofetch:
+            record_id, gene_id = fetch_id.split()
             record = record_dict[record_id]
             record_i = SeqRecord(
-                Seq(f"{record.seq}", SingleLetterAlphabet()), id=gene_id)
+                Seq(f"{record.seq}", SingleLetterAlphabet()), id = gene_id)
             hit_records.append(record_i)
         with open(f'{list_dir}/{org}.fa', 'w') as outhandle:
             SeqIO.write(hit_records, outhandle, "fasta")
@@ -120,10 +125,13 @@ def exoneratetor_bygene(query_file, in_path, in_file_ending, out_path, loci_file
 def exonerator(command_args):
     """Run exonerate. This is a function to allow parallelization with multiprocessing.Pool()"""
     query_file, in_file, in_file_ending, out_path, loc = command_args
-    exonerate_output = subprocess.getoutput(
-        f"exonerate --model protein2genome -q {query_file} -t {in_file} -Q protein -T dna --showvulgar F --showalignment F --verbose 0 --fsmmemory 20G --ryo '>%ti %qi\n%tas\n'")
-    with open(f"{out_path}/{loc}{in_file_ending}", 'w') as out_handle:
-        out_handle.write(exonerate_output)
+    command_out_path=f"{out_path}/{loc}{in_file_ending}"
+    command= ' '.join((
+        f"exonerate --model protein2genome",
+        f"-q {query_file} -t {in_file}",
+        f"-Q protein -T dna"
+        f"--showvulgar F --showalignment F --verbose 0 --fsmmemory 20G --ryo '>%ti %qi\n%tas\n'"))
+    run_command(command,command_out_path)
     return
 
 
@@ -181,10 +189,9 @@ def fasta_subseter(subset_list, in_fasta_path, out_fasta_path):
 
 def maffter(fasta_file_path, out_file_path, num_threads):
     """ Runs and auto mafft alignemnt on a fasta file"""
-    mafft_output = subprocess.getoutput(
-        f"mafft --thread {num_threads} --quiet --auto {fasta_file_path} ")
-    with open(out_file_path, "w") as out_handle:
-        out_handle.write(mafft_output)
+    command = f"mafft --thread {num_threads} --quiet --auto {fasta_file_path}"
+    command_out_path = out_file_path
+    run_command(command,command_out_path)
     return
 
 
@@ -225,6 +232,7 @@ def txtm_fishing_pipe(param_list):
     for fasta_file in fasta_paths_to_dedupe:
         fasta_deduper(fasta_file)
         maffter(fasta_file, os.path.join(mafft_alignments, os.path.basename(fasta_file)), num_threads)
+    txtm_tarlen(loci_list_path, org_list_path, exonerate_clean, '/Users/josec/Desktop/Crinoid_capture/Feb5_hybTxCrinoid/pre_Txm_tarlens.txt')
     return
 
 
@@ -262,8 +270,11 @@ def param_reader(paramfile_path):
     plist = filelines_to_list(paramfile_path)
     p2_list = [p.split('#')[0].strip() for p in plist]
     param_list = []
-    for x in p2_list[0:4]:
-        param_list.append(x)
+    param_list.append(p2_list[0])
+    for x in p2_list[1:3]:
+        param_list.append(int(x))
+    e_vals = list(p2_list[3].split(','))
+    param_list.append(e_vals)
     for x in p2_list[4:]:
         param_list.append(os.path.join(p2_list[0],x)) 
     return param_list
@@ -294,8 +305,8 @@ def txtm_tarlen(loci_list_path, org_list_path, geneseq_path, out_path):
 
 def main():
     # Run the pipeline
-    args = sys.argv[1:]
-    # args = ["--param", "/Users/josec/Desktop/git_repos/TxtmFishing/Feb5-param.txt"]
+    # args = sys.argv[1:]
+    args = ["--param", "/Users/josec/Desktop/git_repos/TxtmFishing/Feb5-param.txt"]
     usage = 'usage: TxtmFishing.py --param parameters.txt'
     if not args:
         print(usage)
@@ -310,6 +321,7 @@ def main():
     # for x in param_list:
     #     print(x)
     txtm_fishing_pipe(param_list)
+ 
 
 
 if __name__ == "__main__":

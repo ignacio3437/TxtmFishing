@@ -40,6 +40,7 @@ python3 -c "import TxtmFishing; TxtmFishing.dir_CATer('$proj_home/Exonerate_clea
 
 
 python3 -c "import TxtmFishing; TxtmFishing.txtm_tarlen('$proj_home/Loc_list2.txt','$proj_home/TranscriptomeList.txt','$proj_home/Exonerate_clean','$proj_home/Txm_tarlens.txt')"
+# python3 -c "import TxtmFishing; TxtmFishing.txtm_tarlen('$proj_home/Trim_Loc_List.txt','$proj_home/TranscriptomeList.txt','$proj_home/Exonerate_clean','$proj_home/Txm_tarlens.txt')"
 
 #append this to end of test_seq_lengths.txt file 
 
