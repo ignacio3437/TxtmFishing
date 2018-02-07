@@ -216,11 +216,14 @@ def txtm_fishing_pipe(param_list):
             print("All loci had hits at {e_val}")
         else:
             print(
-                f"There were {len(check_list)} genes with < {cutoff} hits for {e_val}")
-        to_blast_list = check_list
-        new_query_path = f'{project_path}/SpurGenes_aa_{e_val}.fasta'
-        fasta_subseter(to_blast_list, blast_query_path, new_query_path)
-        blast_query_path = new_query_path
+                f"There were {len(check_list)} genes with < {min_num_seqs} hits for {e_val}")
+        if not check_list:
+            break
+        else:
+            to_blast_list = check_list
+            new_query_path = f'{project_path}/SpurGenes_aa_{e_val}.fasta'
+            fasta_subseter(to_blast_list, blast_query_path, new_query_path)
+            blast_query_path = new_query_path
     exoneratetor_bygene(exonerate_query_path, blast_by_gene, '.fa', exonerate_out, loci_list_path, num_threads)
     fasta_paths_to_dedupe = exonerateout_cleaner(exonerate_out, '.fa', loci_list_path, exonerate_clean)
     for fasta_file in fasta_paths_to_dedupe:
@@ -266,7 +269,7 @@ def param_reader(paramfile_path):
     param_list.append(p2_list[0])
     for x in p2_list[1:3]:
         param_list.append(int(x))
-    e_vals = list(p2_list[3].split(','))
+    e_vals = [x.replace(' ','') for x in p2_list[3].split(',')]
     param_list.append(e_vals)
     for x in p2_list[4:]:
         param_list.append(os.path.join(p2_list[0],x)) 
@@ -298,8 +301,8 @@ def txtm_tarlen(loci_list_path, org_list_path, geneseq_path, out_path):
 
 def main():
     # Run the pipeline
-    # args = sys.argv[1:]
-    args = ["--param", "/Users/josec/Desktop/git_repos/TxtmFishing/Feb5-param.txt"]
+    args = sys.argv[1:]
+    # args = ["--param", "/Users/josec/Desktop/Crinoid_capture/Feb5_hybTxCrinoid/10030_17-param.txt"]
     usage = 'usage: TxtmFishing.py --param parameters.txt'
     if not args:
         print(usage)
