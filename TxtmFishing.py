@@ -8,6 +8,7 @@ from Bio.Alphabet import SingleLetterAlphabet
 import subprocess
 from multiprocessing import Pool
 import sys
+from os.path import basename
 
 
 def filelines_to_list(file):
@@ -127,7 +128,7 @@ def exonerator(command_args):
         f"exonerate --model protein2genome",
         f"-q {query_file} -t {in_file}",
         f"-Q protein -T dna",
-        f"--showvulgar F --showalignment F --verbose 0 --fsmmemory 20G --ryo '>%ti %qi\\n%tas\\n'"))
+        f"--showvulgar F --showalignment F --verbose 0 --fsmmemory 20G --ryo '>%ti %qi\\n%tcs\\n'"))
     run_command(command,command_out_path)
     return
 
@@ -232,23 +233,31 @@ def txtm_fishing_pipe(param_list):
     txtm_tarlen(loci_list_path, org_list_path, exonerate_clean, '/Users/josec/Desktop/Crinoid_capture/Feb5_hybTxCrinoid/pre_Txm_tarlens.txt')
     return
 
-
 def dir_CATer(dir1, dir2, out_path):
     """Combines the files in two directories.
     If the same fasta is in both directories, they are concatenated.
     """ 
-    set_files = list(set(os.listdir(dir1)+os.listdir(dir2)))
-    for file in set_files:
-        gene_records = []
-        for record in SeqIO.parse(f"{dir1}/{file}", "fasta"):
-            gene_records.append(record)
-        for record in SeqIO.parse(f"{dir2}/{file}", "fasta"):
-            gene_records.append(record)
-        for record in gene_records:
-            record.id = record.id.split('-')[0]
-            record.description = ''
-        with open(f"{out_path}/{file}", 'w') as out_handle:
-            SeqIO.write(gene_records, out_handle, "fasta")
+    loci_path_dict = {}
+    directories=[dir1,dir2]
+    for idir in directories:
+        for ifile in os.listdir(idir):
+            file_prefix = os.path.splitext(ifile)[0]
+            try:
+                loci_path_dict[file_prefix].append(os.path.join(idir,ifile))
+            except KeyError:
+                loci_path_dict[file_prefix]=[os.path.join(idir,ifile)]
+    for loci in loci_path_dict:
+        loci_list = loci_path_dict[loci]
+        for loci_path in loci_list:
+            loci_out_path = os.path.join(out_path,f"{loci}.fa")
+            gene_records = []
+            for record in SeqIO.parse(loci_path, "fasta"):
+                gene_records.append(record)
+            for record in gene_records:
+                record.id = record.id.split('-')[0]
+                record.description = ''
+            with open(loci_out_path, 'a') as out_handle:
+                SeqIO.write(gene_records, out_handle, "fasta")
     return
 
 
@@ -302,7 +311,7 @@ def txtm_tarlen(loci_list_path, org_list_path, geneseq_path, out_path):
 def main():
     # Run the pipeline
     args = sys.argv[1:]
-    # args = ["--param", "/Users/josec/Desktop/Crinoid_capture/Feb5_hybTxCrinoid/10030_17-param.txt"]
+    # args = ["--param", "/Users/josec/Desktop/Crinoid_capture/Feb5_hybTxCrinoid/Feb5_Strict-param_test.txt"]
     usage = 'usage: TxtmFishing.py --param parameters.txt'
     if not args:
         print(usage)
