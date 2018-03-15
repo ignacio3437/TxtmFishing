@@ -129,6 +129,8 @@ def exonerator(command_args):
         f"-q {query_file} -t {in_file}",
         f"-Q protein -T dna",
         f"--showvulgar F --showalignment F --verbose 0 --fsmmemory 20G --ryo '>%ti %qi\\n%tcs\\n'"))
+    # print(command)
+    # print(command_out_path)
     run_command(command,command_out_path)
     return
 
@@ -230,7 +232,7 @@ def txtm_fishing_pipe(param_list):
     for fasta_file in fasta_paths_to_dedupe:
         fasta_deduper(fasta_file)
         maffter(fasta_file, os.path.join(mafft_alignments, os.path.basename(fasta_file)), num_threads)
-    txtm_tarlen(loci_list_path, org_list_path, exonerate_clean, '/Users/josec/Desktop/Crinoid_capture/Feb5_hybTxCrinoid/pre_Txm_tarlens.txt')
+    # txtm_tarlen(loci_list_path, org_list_path, exonerate_clean, '/Users/josec/Desktop/Crinoid_capture/Feb5_hybTxCrinoid/pre_Txm_tarlens.txt')
     return
 
 def dir_CATer(dir1, dir2, out_path):
@@ -251,15 +253,25 @@ def dir_CATer(dir1, dir2, out_path):
         for loci_path in loci_list:
             loci_out_path = os.path.join(out_path,f"{loci}.fa")
             gene_records = []
-            for record in SeqIO.parse(loci_path, "fasta"):
-                gene_records.append(record)
-            for record in gene_records:
-                record.id = record.id.split('-')[0]
-                record.description = ''
-            with open(loci_out_path, 'a') as out_handle:
-                SeqIO.write(gene_records, out_handle, "fasta")
+            if isafasta(loci_path):
+                for record in SeqIO.parse(loci_path, "fasta"):
+                    gene_records.append(record)
+                for record in gene_records:
+                    record.id = record.id.split('-')[0]
+                    record.description = ''
+                with open(loci_out_path, 'a') as out_handle:
+                    SeqIO.write(gene_records, out_handle, "fasta")
+            else:
+                print('did not open:'+ loci_path)
     return
 
+def isafasta(fasta_to_check_path):
+    """Returns True if file is parsable as a fasta by BioPython"""
+    records = SeqIO.parse(fasta_to_check_path,"fasta") 
+    try:
+        return any(records)
+    except:
+        return False
 
 def param_reader(paramfile_path):
     """Reads a parameter file with the following:
@@ -295,9 +307,10 @@ def txtm_tarlen(loci_list_path, org_list_path, geneseq_path, out_path):
         org_lens_list = []
         for loci in loci_list:
             loci_rec_dict = SeqIO.to_dict(SeqIO.parse(
-                f"{geneseq_path}/{loci}.fa", "fasta"))
+                f"{geneseq_path}/{loci}.fasta", "fasta"))
             try:
-                org_lens_list.append(len(loci_rec_dict[f"{org}-{loci}"].seq))
+                # org_lens_list.append(len(loci_rec_dict[f"{org}-{loci}"].seq))
+                org_lens_list.append(len(loci_rec_dict[f"{org}"].seq))
             except KeyError:
                 org_lens_list.append('0')
             lens_dict[org] = org_lens_list
@@ -308,10 +321,13 @@ def txtm_tarlen(loci_list_path, org_list_path, geneseq_path, out_path):
     return
 
 
+
+
+
 def main():
     # Run the pipeline
     args = sys.argv[1:]
-    # args = ["--param", "/Users/josec/Desktop/Crinoid_capture/Feb5_hybTxCrinoid/Feb5_Strict-param_test.txt"]
+    # args = ["--param", "/Users/josec/Desktop/Crinoid_capture/Mar_HybTxCrinoid/Cri_MarCut_AA_Gblock/TxtmFishing/Cri_MarCut_AA-param.txt"]
     usage = 'usage: TxtmFishing.py --param parameters.txt'
     if not args:
         print(usage)
@@ -324,6 +340,12 @@ def main():
     param_list = param_reader(paramfile_path)
     txtm_fishing_pipe(param_list)
 
+def main2():
+    loci_list_path = "/Users/josec/Desktop/Crinoid_capture/Mar_HybTxCrinoid/Cri_MarCut_AA_Gblock/Heatmap/AA_genelist.txt"
+    org_list_path = "/Users/josec/Desktop/Crinoid_capture/Mar_HybTxCrinoid/Cri_MarCut_AA_Gblock/Heatmap/Cri_list.txt"
+    geneseq_path = "/Users/josec/Desktop/Crinoid_capture/Mar_HybTxCrinoid/Cri_MarCut_AA_Gblock/Cri_MarCut_AA_seqs"
+    out_path = "/Users/josec/Desktop/Crinoid_capture/Mar_HybTxCrinoid/Cri_MarCut_AA_Gblock/Heatmap/pre_tarlen.txt"
+    txtm_tarlen(loci_list_path, org_list_path, geneseq_path, out_path)
 
 if __name__ == "__main__":
     main()

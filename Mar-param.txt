@@ -1,0 +1,8 @@
+/Users/josec/Desktop/Crinoid_capture/MarAA/TxtmFishing # Project project_path
+7 # Number of threads
+10 # Minimum number of sequences for a given e_vals blast cutoff
+1e-90, 1e-80, 1e-70, 1e-60, 1e-50 #the blast evalue cutoffs to test in the order to test.
+Spur4_Targets_AA.fasta # Filename for blast query file
+TranscriptomeList.txt # Filename for the list of transcriptomes
+MarAATargets_Pseudo_AA.txt # Filename for the list of loci
+MarAATargets_Pseudo_AA.fasta # Filename of the exonerate query
