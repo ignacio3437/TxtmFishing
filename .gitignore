@@ -1,3 +1,6 @@
 .vscode/*
-Feb5.sh
+Feb5*
 __pycache__
+remove_stops.py
+SacarSacco.py
+seq_matcher.py
