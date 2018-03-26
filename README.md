@@ -1,12 +1,13 @@
 # TxtmFishing
+```
 usage: TxtmFishing.py --param parameters.txt 
-
+```
 
 Pulls orthologous genes from transcriptomes and trims them to target exons. Output files are formated to be used as a reference for HybPiper.
 
 
 
-Input Files:
+## Input Files:
 1) Transcriptome files formated as a genbank query database.
 2) Full target genes as aa.fa
 3) Targeted exons of genes as dna.fa
@@ -14,7 +15,7 @@ Input Files:
 5) Text file of a list of the gene names
 6) Parameter file. See example
 
-Required:
+## Required:
 
 Python3, Pool, BioPython, regex
 

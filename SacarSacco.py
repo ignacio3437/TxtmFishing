@@ -12,9 +12,9 @@ Removes all seqs with rem_name from all of the fasta files in in_dir.
 Usage: Sacalo.py --in ind_dir --name rem_name --out out_dir 
 """
 
-in_dir = "/Users/josec/Desktop/Crinoid_capture/Feb5_hybTxCrinoid/StrictFeb5_bygene/aln"
-rem_name = "SACCO"
-out_dir = "/Users/josec/Desktop/Crinoid_capture/Feb5_hybTxCrinoid/StrictFeb5_bygene/aln/NoSacco"
+in_dir = "/Users/josec/Desktop/Crinoid_capture/MarAA/Results/alignments/MarAA_DNA_aln/nodem"
+rem_name = "PSATHY"
+out_dir = "/Users/josec/Desktop/Crinoid_capture/MarAA/Results/alignments/MarAA_DNA_aln/trim"
 
 try:
     os.mkdir(out_dir)
