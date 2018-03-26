@@ -1,8 +1,0 @@
-/Users/josec/Desktop/Crinoid_capture/Feb5_hybTxCrinoid # Project project_path
-7 # Number of threads
-10 # Minimum number of sequences for a given e_vals blast cutoff
-1e-90, 1e-80, 1e-70, 1e-60, 1e-50 #the blast evalue cutoffs to test in the order to test.
-SpurGenes_aa.fa # Filename for blast query file
-TranscriptomeList.txt # Filename for the list of transcriptomes
-Trim_Loc_List.txt # Filename for the list of loci
-SpurGenes_TrimtoTargets_AA.fa # Filename of the exonerate query
