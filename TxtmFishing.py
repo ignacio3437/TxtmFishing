@@ -156,7 +156,7 @@ def exonerateout_cleaner(exonerateout_path, file_ending, loci_file, exoneratecle
 
 
 def fasta_deduper(fasta_file):
-    """Rewrites over fasta file with only one seq per name. Keeps the longest sequence. Removes seq description"""
+    """Rewrites over fasta file with only one seq per name. Keeps the longest sequence. Removes seq description."""
     u_records = []
     u_record_dict = {}
     for record in SeqIO.parse(fasta_file, "fasta"):
@@ -171,7 +171,7 @@ def fasta_deduper(fasta_file):
     u_records = [u_record_dict[record][1] for record,val in u_record_dict.items()]
     with open(fasta_file, 'w') as out_handle:
         SeqIO.write(u_records, out_handle, "fasta")
-    return
+    return len(u_records_dict)
 
 
 def fasta_subseter(subset_list, in_fasta_path, out_fasta_path):
@@ -194,46 +194,13 @@ def maffter(fasta_file_path, out_file_path, num_threads):
     run_command(command,command_out_path)
     return
 
-
-def txtm_fishing_pipe(param_list):
-    """Run pipeline in Python! Shell scripts are #OldSckool.
-    This will iterate the blast searches over the e_vals.
-    If a gene has no hits for a given evalue, it is lowered and searched again.
-    The results from all of the blast searches are concatenated and fed into exonerate.
-    Exonerate picks out the exons that we targeted. 
-    """
-    project_path, num_threads, min_num_seqs, e_vals, blast_query_path, org_list_path, loci_list_path, exonerate_query_path = param_list
-    dirs_to_make = out_dir_maker(project_path)
-    blast_databases, blast_results, mafft_alignments, blast_by_gene, exonerate_out, exonerate_clean = dirs_to_make
-    to_blast_list = filelines_to_list(loci_list_path)
-    # Start the pipeline:
-    for e_val in e_vals:
-        blast_run(e_val, num_threads, blast_databases, blast_query_path, blast_results)
-        seq_fetcher(blast_results, '.blast.txt', blast_databases, '.Trinity.annotated.nt', org_list_path)
-        check_list = cat_by_gene(org_list_path, to_blast_list, blast_results, '.fa', blast_by_gene, min_num_seqs)
-        #Print the status of the blast searches
-        if len(check_list) < 20:
-            print(
-                f"The folowing loci had no hits for {e_val}:{' '.join(check_list)}")
-        elif not check_list:
-            print("All loci had hits at {e_val}")
-        else:
-            print(
-                f"There were {len(check_list)} genes with < {min_num_seqs} hits for {e_val}")
-        if not check_list:
-            break
-        else:
-            to_blast_list = check_list
-            new_query_path = f'{project_path}/SpurGenes_aa_{e_val}.fasta'
-            fasta_subseter(to_blast_list, blast_query_path, new_query_path)
-            blast_query_path = new_query_path
-    exoneratetor_bygene(exonerate_query_path, blast_by_gene, '.fa', exonerate_out, loci_list_path, num_threads)
-    fasta_paths_to_dedupe = exonerateout_cleaner(exonerate_out, '.fa', loci_list_path, exonerate_clean)
-    for fasta_file in fasta_paths_to_dedupe:
-        fasta_deduper(fasta_file)
-        maffter(fasta_file, os.path.join(mafft_alignments, os.path.basename(fasta_file)), num_threads)
-    # txtm_tarlen(loci_list_path, org_list_path, exonerate_clean, '/Users/josec/Desktop/Crinoid_capture/Feb5_hybTxCrinoid/pre_Txm_tarlens.txt')
-    return
+def isafasta(fasta_to_check_path):
+    """Returns True if file is parsable as a fasta by BioPython"""
+    records = SeqIO.parse(fasta_to_check_path,"fasta") 
+    try:
+        return any(records)
+    except:
+        return False
 
 def dir_CATer(dir1, dir2, out_path):
     """Combines the files in two directories.
@@ -265,13 +232,6 @@ def dir_CATer(dir1, dir2, out_path):
                 print('did not open:'+ loci_path)
     return
 
-def isafasta(fasta_to_check_path):
-    """Returns True if file is parsable as a fasta by BioPython"""
-    records = SeqIO.parse(fasta_to_check_path,"fasta") 
-    try:
-        return any(records)
-    except:
-        return False
 
 def param_reader(paramfile_path):
     """Reads a parameter file with the following:
@@ -296,38 +256,67 @@ def param_reader(paramfile_path):
         param_list.append(os.path.join(p2_list[0],x)) 
     return param_list
 
+def txtm_fishing_pipe(param_list):
+    """Run pipeline in Python! Shell scripts are #OldSckool.
+    This will iterate the blast searches over the e_vals.
+    If a gene has less than min_num_seqs for a given evalue, the evalue is lowered and the search is repeated.
+    The results from all of the blast searches are writen to a file and fed into exonerate.
+    Exonerate removes exons that we did not target (ie any exons not present in the exonerate_query seq). 
+    """
+    project_path, num_threads, min_num_seqs, e_vals, blast_query_path, org_list_path, loci_list_path, exonerate_query_path = param_list
+    dirs_to_make = out_dir_maker(project_path)
+    blast_databases, blast_results, mafft_alignments, blast_by_gene, exonerate_out, exonerate_clean = dirs_to_make
+    to_blast_list = filelines_to_list(loci_list_path)
+    # Start the pipeline:
+    for e_val in e_vals:
+        blast_run(e_val, num_threads, blast_databases, blast_query_path, blast_results)
+        seq_fetcher(blast_results, '.blast.txt', blast_databases, '.Trinity.annotated.nt', org_list_path)
+        check_list = cat_by_gene(org_list_path, to_blast_list, blast_results, '.fa', blast_by_gene, min_num_seqs)
+        #Print the status of the blast searches
+        if len(check_list) < 20:
+            print(
+                f"The folowing loci had no hits for {e_val}:{' '.join(check_list)}")
+        elif not check_list:
+            print("All loci had hits at {e_val}")
+        else:
+            print(
+                f"There were {len(check_list)} genes with < {min_num_seqs} hits for {e_val}")
+        if not check_list:
+            break
+        else:
+            to_blast_list = check_list
+            new_query_path = f'{project_path}/SpurGenes_aa_{e_val}.fasta'
+            fasta_subseter(to_blast_list, blast_query_path, new_query_path)
+            blast_query_path = new_query_path
+    exoneratetor_bygene(exonerate_query_path, blast_by_gene, '.fa', exonerate_out, loci_list_path, num_threads)
+    fasta_paths_to_dedupe = exonerateout_cleaner(exonerate_out, '.fa', loci_list_path, exonerate_clean)
+    for fasta_file in fasta_paths_to_dedupe:
+        try:
+            num_seqs = fasta_deduper(fasta_file)
+            if num_seqs > 1:
+                maffter(fasta_file, os.path.join(mafft_alignments, os.path.basename(fasta_file)), num_threads)
+            else:
+                pass
+        except:
+            pass
+    return exonerate_clean
 
-def txtm_tarlen(loci_list_path, org_list_path, geneseq_path, out_path):
-    """Generates a txt file that can be appended to a HypPiper output. 
-    Prints the lengths of the genes for each txtm. """
-    loci_list = filelines_to_list(loci_list_path)
-    org_list = filelines_to_list(org_list_path)
-    lens_dict = {}
-    for org in org_list:
-        org_lens_list = []
-        for loci in loci_list:
-            loci_rec_dict = SeqIO.to_dict(SeqIO.parse(
-                f"{geneseq_path}/{loci}.fasta", "fasta"))
-            try:
-                # org_lens_list.append(len(loci_rec_dict[f"{org}-{loci}"].seq))
-                org_lens_list.append(len(loci_rec_dict[f"{org}"].seq))
-            except KeyError:
-                org_lens_list.append('0')
-            lens_dict[org] = org_lens_list
-    with open(out_path, 'w') as out_handle:
-        for item in lens_dict:
-            line_string = ('\t').join(str(x) for x in lens_dict[item])
-            out_handle.write(f"{item}\t{line_string}\n")
-    return
-
-
-
-
+def wrap_up(directory_to_wrap_up,outfile_path=None):
+    """Wraps up a directory by collating all of the fasta sequences in that directory into a single file.
+    outfile_path is the baitfile to be used in HybPiper.
+    """
+    out_records = []
+    for ifile in os.listdir(directory_to_wrap_up):
+        for irecords in SeqIO.parse(os.path.join(directory_to_wrap_up,ifile),"fasta"):
+            out_records.append(irecords)
+    num_records = (len(out_records))
+    SeqIO.write(out_records, outfile_path, "fasta")
+    return num_records
 
 def main():
     # Run the pipeline
     args = sys.argv[1:]
-    # args = ["--param", "/Users/josec/Desktop/Crinoid_capture/Mar_HybTxCrinoid/Cri_MarCut_AA_Gblock/TxtmFishing/Cri_MarCut_AA-param.txt"]
+    # args = ["--param", "/Users/josec/Desktop/git_repos/TxtmFishing/Mar-param.txt"] # For Testing
     usage = 'usage: TxtmFishing.py --param parameters.txt'
     if not args:
         print(usage)
@@ -338,14 +327,10 @@ def main():
         print(usage)
         sys.exit(1)
     param_list = param_reader(paramfile_path)
-    txtm_fishing_pipe(param_list)
-
-def main2():
-    loci_list_path = "/Users/josec/Desktop/Crinoid_capture/Mar_HybTxCrinoid/Cri_MarCut_AA_Gblock/Heatmap/AA_genelist.txt"
-    org_list_path = "/Users/josec/Desktop/Crinoid_capture/Mar_HybTxCrinoid/Cri_MarCut_AA_Gblock/Heatmap/Cri_list.txt"
-    geneseq_path = "/Users/josec/Desktop/Crinoid_capture/Mar_HybTxCrinoid/Cri_MarCut_AA_Gblock/Cri_MarCut_AA_seqs"
-    out_path = "/Users/josec/Desktop/Crinoid_capture/Mar_HybTxCrinoid/Cri_MarCut_AA_Gblock/Heatmap/pre_tarlen.txt"
-    txtm_tarlen(loci_list_path, org_list_path, geneseq_path, out_path)
+    dir2wrap = txtm_fishing_pipe(param_list)
+    baitfile_path = f"{param_list[0]}/baitfile.fasta"
+    num_records = wrap_up(dir2wrap,outfile_path=baitfile_path)
+    print(f"{num_records} seqs written to baitfile:{baitfile_path}")
 
 if __name__ == "__main__":
     main()

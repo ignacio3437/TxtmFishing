@@ -7,7 +7,7 @@ Pulls orthologous genes from transcriptomes and trims them to target exons. Outp
 
 
 
-##Input Files:
+## Input Files:
 
 1) Transcriptome files formated as a genbank query database.
 2) Full target genes as aa.fa
@@ -16,7 +16,7 @@ Pulls orthologous genes from transcriptomes and trims them to target exons. Outp
 5) Text file of a list of the gene names
 6) Parameter file. See example
 
-##Required:
+## Required:
 
 Python3, Pool, BioPython, regex
 
