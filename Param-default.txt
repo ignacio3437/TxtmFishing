@@ -4,5 +4,5 @@
 # The blast evalue cutoffs to test in descending order. Sep by commas
 # Filename for blast query file. Full CDS of targets from reference Genome.
 # Filename for the list of transcriptomes. Text file of all of the transcriptome filenames
-# Filename for the list of loci. Testfile of all of the targets. 
-# Filename of the exonerate query. Concatenated target exons of CDS from refernce genome in frame. 
+# Filename for the list of loci. Text file of all of the targets. 
+# Filename of the exonerate query. Concatenated target exons of CDS from reference genome in frame. 
