@@ -9,6 +9,7 @@ import subprocess
 from multiprocessing import Pool
 import sys
 from os.path import basename
+from pathlib import Path
 
 
 def filelines_to_list(file):
@@ -28,7 +29,7 @@ def run_command(command,command_out_path):
 
 def out_dir_maker(project_path):
     """Creates output directories for the stages of the pipeline. """
-    dirs_to_make = [f"{project_path}/Blast_databases", f"{project_path}/Blast_results", f"{project_path}/Txtms_TrimtoTargets_alignments",
+    dirs_to_make = [f"{project_path}/Blast_results", f"{project_path}/Txtms_TrimtoTargets_alignments",
                     f"{project_path}/Blast_by_gene", f"{project_path}/Exonerate_out", f"{project_path}/Exonerate_clean"]
     for directory in dirs_to_make:
         try:
@@ -38,41 +39,47 @@ def out_dir_maker(project_path):
     return dirs_to_make
 
 
-def blast_run(evalue, threads, in_path, query_file, out_path):
+def blast_run(evalue, threads, in_path, query_file, out_path, org_file):
     """Run tblastn on each file in in_path with set evalue cutoff on x threads.
     Only saves top blast hit. Infile must end with '.nt'.
     Consecutive runs will overwrite the blast_output file.
     """
     filenames = os.listdir(in_path)
+    orglist = filelines_to_list(org_file)
     for file in filenames:
-        if file.endswith(".nt"):
-            file_prefix = file.replace('.Trinity.annotated.nt', '')
+        if file in orglist:
+            filepath = str(Path(in_path)/file)
+            # file_prefix = file.replace('.Trinity.annotated.nt', '')
             command = ' '.join((f"tblastn", 
-            f"-query {query_file} -db {in_path}/{file}",
+            f"-query {query_file} -db {filepath}",
             f"-evalue {evalue} -num_threads {threads}",
-            f"-outfmt '6 sseqid qseqid' -max_target_seqs 1 -max_hsps 1"))
-            command_out_path = f"{out_path}/{file_prefix}.blast.txt"
+            f"-outfmt '6 sseqid qseqid' -num_alignments 1"))
+            command_out_path = f"{out_path}/{file}.blast.txt"
             run_command(command, command_out_path)
     return
 
 
-def seq_fetcher(list_dir, list_file_endings, seq_dir, seq_file_ending, org_file):
+def seq_fetcher(list_dir, list_file_endings, seq_dir, org_file):
     """Loads the blast results of each organism and writes the results by gene.
     Appends to existing files if present."""
     orglist = filelines_to_list(org_file)
     for org in orglist:
-        hit_records = []
-        record_dict = SeqIO.to_dict(SeqIO.parse(
-            f"{seq_dir}/{org}{seq_file_ending}", "fasta"))
-        tofetch = filelines_to_list(f"{list_dir}/{org}{list_file_endings}")
-        for fetch_id in tofetch:
-            record_id, gene_id = fetch_id.split()
-            record = record_dict[record_id]
-            record_i = SeqRecord(
-                Seq(f"{record.seq}", SingleLetterAlphabet()), id = gene_id)
-            hit_records.append(record_i)
-        with open(f'{list_dir}/{org}.fa', 'w') as outhandle:
-            SeqIO.write(hit_records, outhandle, "fasta")
+        if len(org)>3: #Make sure the line is not blank
+            hit_records = []
+            record_dict = SeqIO.to_dict(SeqIO.parse(
+                f"{seq_dir}/{org}", "fasta"))
+            tofetch = filelines_to_list(f"{list_dir}/{org}{list_file_endings}")
+            for fetch_id in tofetch:
+                record_id, gene_id = fetch_id.split()
+                record = record_dict[record_id]
+                record_i = SeqRecord(
+                    Seq(f"{record.seq}", SingleLetterAlphabet()), id = gene_id)
+                hit_records.append(record_i)
+            out_file_path=f'{list_dir}/{org}.fa'
+            with open(out_file_path, 'w') as outhandle:
+                SeqIO.write(hit_records, outhandle, "fasta")
+            fasta_deduper(fasta_file=out_file_path)
+
     return
 
 
@@ -84,9 +91,10 @@ def cat_by_gene(org_file, loci_list, in_path, file_ending, out_path, cutoff):
     org_list = filelines_to_list(org_file)
     org_dict = {}
     for org in org_list:
-        exonerate_dict = SeqIO.to_dict(SeqIO.parse(
-            f"{in_path}/{org}{file_ending}", "fasta"))
-        org_dict[org] = exonerate_dict
+        if len(org)>3: #Make sure the line is not blank
+            exonerate_dict = SeqIO.to_dict(SeqIO.parse(
+                f"{in_path}/{org}{file_ending}", "fasta"))
+            org_dict[org] = exonerate_dict
     spurgenes = loci_list
     # print(f"Number of genes: {len(spurgenes)}")
     # print(f"Number of transcriptomes: {len(org_list)}")
@@ -140,15 +148,21 @@ def exonerateout_cleaner(exonerateout_path, file_ending, loci_file, exoneratecle
     loclist = filelines_to_list(loci_file)
     fasta_paths_to_dedupe = []
     for loc in loclist:
-        to_write = []
+        to_add = []
         in_file = f"{exonerateout_path}/{loc}{file_ending}"
         records = SeqIO.parse(in_file, "fasta")
         for record in records:
             qloci = record.description.split()[1]
             tloci = record.id.split('-')[1]
             if qloci == tloci:
-                to_write.append(record)
+                to_add.append(record)
         out_path = f"{exonerateclean_path}/{loc}{file_ending}"
+        to_write = []
+        for record in to_add:
+            org = record.id
+            record_name = f"{org.split('.')[0]}"
+            record.id = record_name
+            to_write.append(record)
         with open(out_path, 'w') as out_handle:
             SeqIO.write(to_write, out_handle, 'fasta')
             fasta_paths_to_dedupe.append(os.path.abspath(out_path))
@@ -171,7 +185,7 @@ def fasta_deduper(fasta_file):
     u_records = [u_record_dict[record][1] for record,val in u_record_dict.items()]
     with open(fasta_file, 'w') as out_handle:
         SeqIO.write(u_records, out_handle, "fasta")
-    return len(u_records_dict)
+    return len(u_record_dict)
 
 
 def fasta_subseter(subset_list, in_fasta_path, out_fasta_path):
@@ -243,6 +257,7 @@ def param_reader(paramfile_path):
     Filename for the list of transcriptomes
     Filename for the list of loci
     Filename of the exonerate query
+    Path of Transcriptomes
     """
     plist = filelines_to_list(paramfile_path)
     p2_list = [p.split('#')[0].strip() for p in plist]
@@ -263,19 +278,19 @@ def txtm_fishing_pipe(param_list):
     The results from all of the blast searches are writen to a file and fed into exonerate.
     Exonerate removes exons that we did not target (ie any exons not present in the exonerate_query seq). 
     """
-    project_path, num_threads, min_num_seqs, e_vals, blast_query_path, org_list_path, loci_list_path, exonerate_query_path = param_list
+    project_path, num_threads, min_num_seqs, e_vals, blast_query_path, org_list_path, loci_list_path, exonerate_query_path, txtm_folder = param_list
     dirs_to_make = out_dir_maker(project_path)
-    blast_databases, blast_results, mafft_alignments, blast_by_gene, exonerate_out, exonerate_clean = dirs_to_make
+    blast_results, mafft_alignments, blast_by_gene, exonerate_out, exonerate_clean = dirs_to_make
     to_blast_list = filelines_to_list(loci_list_path)
     # Start the pipeline:
     for e_val in e_vals:
-        blast_run(e_val, num_threads, blast_databases, blast_query_path, blast_results)
-        seq_fetcher(blast_results, '.blast.txt', blast_databases, '.Trinity.annotated.nt', org_list_path)
+        blast_run(evalue=e_val, threads=num_threads, in_path=txtm_folder, query_file=blast_query_path, out_path=blast_results, org_file=org_list_path)
+        seq_fetcher(list_dir=blast_results, list_file_endings='.blast.txt', seq_dir=txtm_folder, org_file=org_list_path)
         check_list = cat_by_gene(org_list_path, to_blast_list, blast_results, '.fa', blast_by_gene, min_num_seqs)
         #Print the status of the blast searches
         if len(check_list) < 20:
             print(
-                f"The folowing loci had no hits for {e_val}:{' '.join(check_list)}")
+                f"The following loci had no hits for {e_val}:{' '.join(check_list)}")
         elif not check_list:
             print("All loci had hits at {e_val}")
         else:
@@ -291,13 +306,10 @@ def txtm_fishing_pipe(param_list):
     exoneratetor_bygene(exonerate_query_path, blast_by_gene, '.fa', exonerate_out, loci_list_path, num_threads)
     fasta_paths_to_dedupe = exonerateout_cleaner(exonerate_out, '.fa', loci_list_path, exonerate_clean)
     for fasta_file in fasta_paths_to_dedupe:
-        try:
-            num_seqs = fasta_deduper(fasta_file)
-            if num_seqs > 1:
-                maffter(fasta_file, os.path.join(mafft_alignments, os.path.basename(fasta_file)), num_threads)
-            else:
-                pass
-        except:
+        num_seqs = fasta_deduper(fasta_file)
+        if num_seqs > 1:
+            maffter(fasta_file, os.path.join(mafft_alignments, os.path.basename(fasta_file)), num_threads)
+        else:
             pass
     return exonerate_clean
 
@@ -307,8 +319,12 @@ def wrap_up(directory_to_wrap_up,outfile_path=None):
     """
     out_records = []
     for ifile in os.listdir(directory_to_wrap_up):
-        for irecords in SeqIO.parse(os.path.join(directory_to_wrap_up,ifile),"fasta"):
-            out_records.append(irecords)
+        gene = ifile.split('.')[0]
+        for irecord in SeqIO.parse(os.path.join(directory_to_wrap_up,ifile),"fasta"):
+            taxa = irecord.id
+            irecord.id = f"{taxa}-{gene}"
+            irecord.description = ''
+            out_records.append(irecord)
     num_records = (len(out_records))
     SeqIO.write(out_records, outfile_path, "fasta")
     return num_records
