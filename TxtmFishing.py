@@ -347,6 +347,6 @@ def main():
     baitfile_path = f"{param_list[0]}/baitfile.fasta"
     num_records = wrap_up(dir2wrap,outfile_path=baitfile_path)
     print(f"{num_records} seqs written to baitfile:{baitfile_path}")
-
+    print('\a')
 if __name__ == "__main__":
     main()
