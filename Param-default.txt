@@ -6,3 +6,4 @@
 # Filename for the list of transcriptomes. Text file of all of the transcriptome filenames
 # Filename for the list of loci. Text file of all of the targets. 
 # Filename of the exonerate query. Concatenated target exons of CDS from reference genome in frame. 
+# Directory with Transcriptomes and blast databases 
