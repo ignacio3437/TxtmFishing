@@ -202,8 +202,9 @@ def fasta_subseter(subset_list, in_fasta_path, out_fasta_path):
 
 
 def maffter(fasta_file_path, out_file_path, num_threads):
-    """ Runs and auto mafft alignemnt on a fasta file"""
-    command = f"mafft --thread {num_threads} --quiet --auto {fasta_file_path}"
+    """ Runs and auto mafft alignemnt on a fasta file.
+    Settings changed to produce a less gappy alignment because we are dealing with coding data. """
+    command = f"mafft --oldgenafpair --leavegappyregion --ep 0.5 --op 2 --thread {num_threads} --quiet --auto {fasta_file_path}"
     command_out_path = out_file_path
     run_command(command,command_out_path)
     return
@@ -272,11 +273,11 @@ def param_reader(paramfile_path):
     return param_list
 
 def txtm_fishing_pipe(param_list):
-    """Run pipeline in Python! Shell scripts are #OldSckool.
+    """Run pipeline in Python.
     This will iterate the blast searches over the e_vals.
     If a gene has less than min_num_seqs for a given evalue, the evalue is lowered and the search is repeated.
     The results from all of the blast searches are writen to a file and fed into exonerate.
-    Exonerate removes exons that we did not target (ie any exons not present in the exonerate_query seq). 
+    Exonerate removes exons that we did not target (ie any exons not present in the exonerate_query seq) and regions that do not align with the reference. 
     """
     project_path, num_threads, min_num_seqs, e_vals, blast_query_path, org_list_path, loci_list_path, exonerate_query_path, txtm_folder = param_list
     dirs_to_make = out_dir_maker(project_path)
