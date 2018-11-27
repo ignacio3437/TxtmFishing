@@ -204,7 +204,7 @@ def fasta_subseter(subset_list, in_fasta_path, out_fasta_path):
 def maffter(fasta_file_path, out_file_path, num_threads):
     """ Runs and auto mafft alignemnt on a fasta file.
     Settings changed to produce a less gappy alignment because we are dealing with coding data. """
-    command = f"mafft --oldgenafpair --leavegappyregion --ep 0.5 --op 2 --thread {num_threads} --quiet --auto {fasta_file_path}"
+    command = f" mafft --oldgenafpair --leavegappyregion --thread {num_threads} --op 2 --quiet {fasta_file_path}"
     command_out_path = out_file_path
     run_command(command,command_out_path)
     return
