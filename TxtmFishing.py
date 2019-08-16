@@ -68,7 +68,8 @@ def seq_fetcher(list_dir, list_file_endings, seq_dir, org_file):
             hit_records = []
             record_dict = SeqIO.to_dict(SeqIO.parse(
                 f"{seq_dir}/{org}", "fasta"))
-            tofetch = filelines_to_list(f"{list_dir}/{org}{list_file_endings}")
+            tofetcha = filelines_to_list(f"{list_dir}/{org}{list_file_endings}")
+            tofetch = [tf for tf in tofetcha if 'Warning' not in tf]
             for fetch_id in tofetch:
                 record_id, gene_id = fetch_id.split()
                 record = record_dict[record_id]
