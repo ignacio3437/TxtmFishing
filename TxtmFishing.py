@@ -14,7 +14,7 @@ from pathlib import Path
 
 def filelines_to_list(file):
     """Makes a list of each new line in a file. """
-    with open(file, 'rU') as file_handle:
+    with open(file) as file_handle:
         file_list = [ind.rstrip() for ind in file_handle.readlines()]
     return file_list
 
@@ -24,7 +24,7 @@ def run_command(command,command_out_path):
         out_handle.write(command_output[1])
         if command_output[0]:
             print(f"{command} Failed")
-            sys.exit(1)
+            # sys.exit(1)
     return
 
 def out_dir_maker(project_path):
@@ -284,7 +284,7 @@ def txtm_fishing_pipe(param_list):
     dirs_to_make = out_dir_maker(project_path)
     blast_results, mafft_alignments, blast_by_gene, exonerate_out, exonerate_clean = dirs_to_make
     to_blast_list = filelines_to_list(loci_list_path)
-    # Start the pipeline:
+    # # Start the pipeline:
     for e_val in e_vals:
         blast_run(evalue=e_val, threads=num_threads, in_path=txtm_folder, query_file=blast_query_path, out_path=blast_results, org_file=org_list_path)
         seq_fetcher(list_dir=blast_results, list_file_endings='.blast.txt', seq_dir=txtm_folder, org_file=org_list_path)
