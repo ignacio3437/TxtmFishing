@@ -4,7 +4,6 @@ import os
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from Bio.Alphabet import SingleLetterAlphabet
 import subprocess
 from multiprocessing import Pool
 import sys
@@ -74,7 +73,7 @@ def seq_fetcher(list_dir, list_file_endings, seq_dir, org_file):
                 record_id, gene_id = fetch_id.split()
                 record = record_dict[record_id]
                 record_i = SeqRecord(
-                    Seq(f"{record.seq}", SingleLetterAlphabet()), id = gene_id)
+                    Seq(f"{record.seq}"), id = gene_id)
                 hit_records.append(record_i)
             out_file_path=f'{list_dir}/{org}.fa'
             with open(out_file_path, 'w') as outhandle:
@@ -105,7 +104,7 @@ def cat_by_gene(org_file, loci_list, in_path, file_ending, out_path, cutoff):
             for org in org_list:
                 record_id = f"{org}-{spurgene}"
                 try:
-                    record_i = SeqRecord(Seq(f"{org_dict[org][spurgene].seq}", SingleLetterAlphabet()), id=record_id, description="")
+                    record_i = SeqRecord(Seq(f"{org_dict[org][spurgene].seq}"), id=record_id, description="")
                     SeqIO.write(record_i, out_handle, "fasta")
                 except KeyError:
                     pass
